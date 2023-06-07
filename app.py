@@ -1,10 +1,11 @@
-from flask import Flask, render_template, request
-from main import recommendation, to_list, get_suggestions, model, vectorizer
+from flask import Flask, render_template, request, url_for
+from main import rcmd, convert_to_list, get_suggestions
 from bs4 import BeautifulSoup
 import numpy as np
 import urllib
 
 app = Flask(__name__, static_folder='static')
+
 
 @app.route('/')
 @app.route('/home')
@@ -15,7 +16,7 @@ def home():
 @app.route('/similarity', methods=['POST'])
 def similarity():
     movie = request.form['name']
-    rmd = recommendation(movie)
+    rmd = rcmd(movie)
     if type(rmd)==type('string'):
         return rmd
     else:
@@ -46,14 +47,14 @@ def recommend():
 
     suggestions = get_suggestions()
 
-    rec_movies = to_list(rec_movies)
-    rec_posters = to_list(rec_posters)
-    cast_names = to_list(cast_names)
-    cast_chars = to_list(cast_chars)
-    cast_profiles = to_list(cast_profiles)
-    cast_bdays = to_list(cast_bdays)
-    cast_bios = to_list(cast_bios)
-    cast_places = to_list(cast_places)
+    rec_movies = convert_to_list(rec_movies)
+    rec_posters = convert_to_list(rec_posters)
+    cast_names = convert_to_list(cast_names)
+    cast_chars = convert_to_list(cast_chars)
+    cast_profiles = convert_to_list(cast_profiles)
+    cast_bdays = convert_to_list(cast_bdays)
+    cast_bios = convert_to_list(cast_bios)
+    cast_places = convert_to_list(cast_places)
 
     cast_ids = cast_ids.split(',')
     cast_ids[0] = cast_ids[0].replace("[","]")
@@ -68,25 +69,10 @@ def recommend():
 
     cast_details = {cast_names[i]:[cast_ids[i], cast_profiles[i], cast_bdays[i], cast_places[i], cast_bios[i]] for i in range(len(cast_places))}
     
-    url = urllib.request.urlopen('https://www.imdb.com/title/{}/reviews?ref_=tt_ov_rt'.format(imdb_id)).read()
-    soup = BeautifulSoup(url,'lxml')
-    soup_result = soup.find_all("div", {"class":"text show-more__control"})
-
-    reviews_list = []
-    reviews_status = []
-    for reviews in soup_result:
-        if reviews.string:
-            reviews_list.append(reviews.string)
-            movie_review_list = np.array([reviews.string])
-            movie_vector = vectorizer.transform(movie_review_list)
-            pred = model.predict(movie_vector)
-            reviews_status.append('Good' if pred else 'Bad')
-
-    movie_reviews = {reviews_list[i]: reviews_status[i] for i in range(len(reviews_list))}
 
     return render_template('recommend.html',title=title,poster=poster,overview=overview,vote_average=vote_average,
         vote_count=vote_count,release_date=release_date,runtime=runtime,status=status,genres=genres,
-        movie_cards=movie_cards,reviews=movie_reviews,casts=casts,cast_details=cast_details)
+        movie_cards=movie_cards,casts=casts,cast_details=cast_details)
 
 if __name__ == '__main__':
     app.run(debug=True)
